@@ -9,9 +9,8 @@ import pickle
 
 class Bot:
     def __init__(self):
-        self.vk = vk_api.VkApi(token='a58d2fee5ee13e1395da4a684e8067c39ed66a'
-                                     '91f1d22344059901c29b58bca9601baf20dca1fe1b3d1ff')
-        self.long_poll = VkBotLongPoll(self.vk, group_id='181100955')
+        self.vk = vk_api.VkApi(token='group_token')
+        self.long_poll = VkBotLongPoll(self.vk, group_id='group_id')
         self.vk_api = self.vk.get_api()
 
         self.warns = {}
