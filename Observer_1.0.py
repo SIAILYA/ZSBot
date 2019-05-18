@@ -8,8 +8,9 @@ import pickle
 
 class Bot:
     def __init__(self):
-       self.vk = vk_api.VkApi(token='group_token')
-        self.long_poll = VkBotLongPoll(self.vk, group_id='group_id')
+        self.vk = vk_api.VkApi(token='a58d2fee5ee13e1395da4a684e8067c39ed66a'
+                                     '91f1d22344059901c29b58bca9601baf20dca1fe1b3d1ff')
+        self.long_poll = VkBotLongPoll(self.vk, group_id='181100955')
         self.vk_api = self.vk.get_api()
 
         self.warns = {}
@@ -71,6 +72,13 @@ class Bot:
             l = open('rules.txt', 'w')
             l.close()
 
+        # try:
+        #     for i in range(1000):
+        #         self.send_msg(2000000001 + i, 'Бот запущен!')
+        # except:
+        #     pass
+
+
     def save_to_file(self, name, var):
         with open(name, 'wb') as out:
             pickle.dump(var, out)
@@ -78,7 +86,7 @@ class Bot:
     def main(self):
         for event in self.long_poll.listen():
             if event.type == VkBotEventType.MESSAGE_NEW:
-                # self.warns[event.obj.from_id] = self.warns.get(event.obj.from_id, 0)
+                self.warns[event.obj.from_id] = self.warns.get(event.obj.from_id, 0)
                 with open('warns.txt', 'wb') as out:
                     pickle.dump(self.warns, out)
                 self.req = self.vk_api.users.get(user_ids=event.obj.from_id, fields='photo_id',
@@ -98,20 +106,26 @@ class Bot:
     def inbox(self, event):
         if event.obj.text[0] == '!':
             self.admin_commands(event)
+
         if 'илья' in event.obj.text.lower():
             self.send_msg(event.obj.peer_id, 'Кстати хочется заметить, что Илья дебил')
+
         if 'филипп' in event.obj.text.lower():
             self.send_msg(event.obj.peer_id, 'Кстати хочется заметить, что Филипп дебил')
+
         if (event.obj.text.lower() == 'время') or (event.obj.text.lower() == 'дата'):
             self.send_msg(event.obj.peer_id, self.get_time(event.obj.text.lower()))
+
         if event.obj.text.lower() == 'план' or event.obj.text.lower() == 'расписание':
             self.down_plan()
             self.photo(event.obj.peer_id, root='res.png')
+
         if event.obj.text.lower() in ['анекбот', 'анек']:
             self.send_msg(event.obj.peer_id, self.get_humor())
+
         if self.obscene_language(event):
             user_id = event.obj.from_id
-            self.warns[event.obj.from_id] += 1
+            self.warns[event.obj.from_id] = self.warns.get(event.obj.from_id, 0) + 1
             count = self.warns[event.obj.from_id]
             name = self.req[0]['first_name']
             if count < 4:
@@ -139,27 +153,54 @@ class Bot:
                     self.save_to_file('whitelist.txt', self.whitelist)
                 else:
                     self.send_msg(event.obj.peer_id, 'Перешлите чье-либо сообщение, чтобы добавить человека в белый список')
-
-        elif 'мат' in msg:
-            pass
+            else:
+                self.send_msg(event.obj.peer_id, 'Вы не являетесь администратором беседы!')
 
         elif 'варн' in msg:
-            pass
-
-        elif 'админ' in msg:
             if event.obj.from_id in self.admins[event.obj.peer_id]:
                 if 'reply_message' in event.obj:
-                    new_admin = {event.obj.peer_id: self.admins.get(event.obj.peer_id, []) + [
-                        event.obj.reply_message['from_id']]}
-                    self.admins.update(new_admin)
-                    print(self.admins[event.obj.peer_id])
-                    self.send_msg(event.obj.peer_id, f'Пользователь @id{event.obj.reply_message["from_id"]}'
-                    f'({self.vk_api.users.get(user_ids=event.obj.reply_message["from_id"], fields="photo_id", name_case="nom")[0]["first_name"]}) теперь администратор беседы!')
-                    self.save_to_file('admins.txt', self.admins)
+                    try:
+                        user_id = event.obj.reply_message['from_id']
+                        print(self.warns)
+                        self.warns[user_id] = self.warns.get(user_id, 0) + 1
+                        count = self.warns[user_id]
+                        name = self.vk_api.users.get(user_ids=user_id, fields='photo_id',
+                                                 name_case='nom')[0]['first_name']
+                        if count < 4:
+                            warn = f'@id{user_id}({name}), администратор выдал вам предупреждение! Еще {5 - count} варнов и БАН'
+                            # print(self.warns)
+                            self.send_msg(event.obj.peer_id, warn)
+                        elif count == 4:
+                            kick = f'@id{user_id}({name}), вы получили уже 4 предупрежденя.' \
+                                f' В следующий раз вы будете исключены из беседы!'
+                            self.send_msg(event.obj.peer_id, kick)
+                        else:
+                            self.kick(event, by_reply=1)
+                    except vk_api.exceptions.ApiError:
+                        self.send_msg(event.obj.peer_id, 'Не могу исключить данного пользователя!')
                 else:
-                    self.send_msg(event.obj.peer_id, 'Перешлите чье-либо сообщение, чтобы добавить человека в список администраторов беседы')
+                    self.send_msg(event.obj.peer_id,
+                                  'Перешлите чье-либо сообщение, чтобы кикнуть человека')
             else:
-                self.send_msg(event.obj.peer_id, 'Вы не являетесь администратором беседы')
+                self.send_msg(event.obj.peer_id, 'Вы не являетесь администратором беседы!')
+
+        elif 'админ' in msg:
+            try:
+                if (event.obj.from_id in [222383631, 223632391]) or (event.obj.from_id in self.admins.get(event.obj.peer_id, False)):
+                    if 'reply_message' in event.obj:
+                        new_admin = {event.obj.peer_id: self.admins.get(event.obj.peer_id, []) + [
+                            event.obj.reply_message['from_id']]}
+                        self.admins.update(new_admin)
+                        print(self.admins[event.obj.peer_id])
+                        self.send_msg(event.obj.peer_id, f'Пользователь @id{event.obj.reply_message["from_id"]}'
+                        f'({self.vk_api.users.get(user_ids=event.obj.reply_message["from_id"], fields="photo_id", name_case="nom")[0]["first_name"]}) теперь администратор беседы!')
+                        self.save_to_file('admins.txt', self.admins)
+                    else:
+                        self.send_msg(event.obj.peer_id, 'Перешлите чье-либо сообщение, чтобы добавить человека в список администраторов беседы')
+                else:
+                    self.send_msg(event.obj.peer_id, 'Вы не являетесь администратором беседы')
+            except:
+                self.send_msg(event.obj.peer_id, 'Произошла ошибка!')
 
         elif 'кик' in msg:
             if event.obj.from_id in self.admins[event.obj.peer_id]:
@@ -172,11 +213,10 @@ class Bot:
                     self.send_msg(event.obj.peer_id, 'Перешлите чье-либо сообщение, чтобы кикнуть человека')
 
         elif 'обнулить' in msg:
-            if event.obj.from_id in self.admins[event.obj.peer_id]:
-                if event.obj.from_id in [223632391]:
-                    self.warns = []
-                    self.save_to_file('warns.txt', self.warns)
-                    self.send_msg(event.obj.peer_id, 'Все варны пользователей успешно обнулены!')
+            if event.obj.from_id in [223632391]:
+                self.warns = {}
+                self.save_to_file('warns.txt', self.warns)
+                self.send_msg(event.obj.peer_id, 'Все варны пользователей успешно обнулены!')
 
         elif 'правила' in msg:
             if event.obj.text.strip() == '!правила':
@@ -267,5 +307,4 @@ class Bot:
         return anek
 
 if __name__ == "__main__":
-    # Bot.send_msg()
     Bot().main()
